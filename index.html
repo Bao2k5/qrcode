@@ -303,8 +303,16 @@
 
         let scene, camera, renderer, controls;
         let heartParticles, textRings = [];
+        let nemoGroup;
+        let nemoSparkles = []; // Array to hold sparkle particles
+        let nemoTargetSpeed = 0.8;
+        let nemoCurrentSpeed = 0.8;
         let time = 0;
         let isStarted = false;
+
+        // Interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
 
         let scanTimer;
         let isUnlocked = false;
@@ -402,10 +410,48 @@
             createHeart();
             createRotatingTextRings();
             createStarfield();
+            createNemo();
 
             window.addEventListener('resize', onWindowResize);
 
+            // Interaction listeners for Nemo
+            window.addEventListener('click', onPointerClick);
+            window.addEventListener('touchstart', onPointerTouch, { passive: false });
+
             animate();
+        }
+
+        function onPointerClick(event) {
+            if (!isStarted || !nemoGroup) return;
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            checkNemoInteraction();
+        }
+
+        function onPointerTouch(event) {
+            if (!isStarted || !nemoGroup || event.touches.length === 0) return;
+            mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+            checkNemoInteraction();
+        }
+
+        function checkNemoInteraction() {
+            raycaster.setFromCamera(mouse, camera);
+            // Check intersection with Nemo's particle mesh
+            const intersects = raycaster.intersectObject(nemoGroup.children[0]);
+
+            if (intersects.length > 0) {
+                // Nemo gets startled! Swim fast.
+                nemoTargetSpeed = 3.5;
+
+                // Add a burst of speed by aggressively jumping the time forward slightly
+                time += 1.0;
+
+                // Reset speed back to normal after a short time
+                setTimeout(() => {
+                    nemoTargetSpeed = 0.8;
+                }, 2000);
+            }
         }
 
         function createHeart() {
@@ -616,6 +662,92 @@
             scene.add(stars);
         }
 
+        function createNemo() {
+            nemoGroup = new THREE.Group();
+
+            const particleCount = 4000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            const colorOrange = new THREE.Color(0xff6600);
+            const colorWhite = new THREE.Color(0xffffff);
+            const colorBlack = new THREE.Color(0x222222);
+
+            for (let i = 0; i < particleCount; i++) {
+                let x, y, z;
+                let isBody = Math.random() > 0.3; // 70% body, 30% fins/tail
+
+                if (isBody) {
+                    // Ellipsoid body
+                    const u = Math.random() * Math.PI * 2;
+                    const v = Math.random() * Math.PI;
+                    const r = Math.cbrt(Math.random()); // Solid volume
+
+                    x = r * Math.cos(u) * Math.sin(v) * 20; // Length
+                    y = r * Math.sin(u) * Math.sin(v) * 10; // Height
+                    z = r * Math.cos(v) * 6; // Width
+                } else {
+                    // Tail & Fins
+                    let isTail = Math.random() > 0.5;
+                    if (isTail) {
+                        // Tail fin (flat triangle-ish at the back)
+                        const rx = -20 - Math.random() * 15;
+                        const ry = (Math.random() - 0.5) * 20 * (Math.abs(rx + 20) / 15 + 0.2);
+                        const rz = (Math.random() - 0.5) * 2;
+                        x = rx; y = ry; z = rz;
+                    } else {
+                        // Top/Bottom fins
+                        const rx = (Math.random() - 0.3) * 15;
+                        const ry = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 8);
+                        const rz = (Math.random() - 0.5) * 2;
+                        x = rx; y = ry; z = rz;
+                    }
+                }
+
+                // Stripe Coloring logic based on X position
+                let c = colorOrange;
+                // Stripe 1 (Head/Gills)
+                if (x > 5 && x < 9) c = colorWhite;
+                else if ((x >= 4 && x <= 5) || (x >= 9 && x <= 10)) c = colorBlack;
+                // Stripe 2 (Middle)
+                else if (x > -5 && x < -1) c = colorWhite;
+                else if ((x >= -6 && x <= -5) || (x >= -1 && x <= 0)) c = colorBlack;
+                // Stripe 3 (Tail base)
+                else if (x > -18 && x < -15) c = colorWhite;
+                else if ((x >= -19 && x <= -18) || (x >= -15 && x <= -14)) c = colorBlack;
+                // Fin tips black
+                else if (Math.abs(y) > 14 || x < -30) c = colorBlack;
+
+                positions[i * 3] = x;
+                positions[i * 3 + 1] = y;
+                positions[i * 3 + 2] = z;
+
+                colors[i * 3] = c.r;
+                colors[i * 3 + 1] = c.g;
+                colors[i * 3 + 2] = c.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 1.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending
+            });
+
+            const fishParticles = new THREE.Points(geometry, material);
+            nemoGroup.add(fishParticles);
+
+            // Initial position far out
+            nemoGroup.position.set(200, 50, -100);
+
+            scene.add(nemoGroup);
+        }
+
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -642,6 +774,112 @@
                     ring.material.map.offset.x += ring.userData.textureOffsetSpeed;
                 }
             });
+
+            // Animate Nemo Fish
+            if (nemoGroup) {
+                // Smoothly interpolate current speed towards target speed
+                nemoCurrentSpeed += (nemoTargetSpeed - nemoCurrentSpeed) * 0.05;
+
+                // Procedural swimming path (Infinity orbit around the heart)
+                const orbitRadius = 150;
+
+                // Use a separate accumulator for swimming position to handle speed changes gracefully
+                if (!nemoGroup.userData.swimAccumulator) nemoGroup.userData.swimAccumulator = 0;
+                nemoGroup.userData.swimAccumulator += nemoCurrentSpeed * 0.016;
+
+                const swimProgress = nemoGroup.userData.swimAccumulator;
+
+                // Infinity figure-eight path
+                const targetX = Math.sin(swimProgress) * orbitRadius;
+                const targetZ = Math.sin(swimProgress * 0.5) * orbitRadius * 1.5;
+                const targetY = Math.cos(swimProgress * 1.2) * 30 + 20;
+
+                // Move Nemo smoothy towards target
+                nemoGroup.position.x += (targetX - nemoGroup.position.x) * 0.05;
+                nemoGroup.position.y += (targetY - nemoGroup.position.y) * 0.05;
+                nemoGroup.position.z += (targetZ - nemoGroup.position.z) * 0.05;
+
+                // Calculate direction for Nemo to face
+                const dx = targetX - nemoGroup.position.x;
+                const dz = targetZ - nemoGroup.position.z;
+                const angle = Math.atan2(dx, dz);
+
+                // Smoothly rotate Nemo to face swim direction
+                nemoGroup.rotation.y += (angle - nemoGroup.rotation.y) * 0.1;
+
+                // Wag the tail (wobble the whole fish slightly on Y axis based on speed)
+                // Wag faster if swimming faster
+                nemoGroup.children[0].rotation.y = Math.sin(time * 15 * (nemoCurrentSpeed / 0.8)) * 0.2;
+                // Swim bobbing
+                nemoGroup.children[0].rotation.z = Math.sin(time * 5) * 0.1;
+
+                // --- Nemo Sparkle Trail Logic ---
+                // Emit sparkles more frequently if swimming fast
+                let emitThreshold = nemoCurrentSpeed > 1.5 ? 0.1 : 0.4;
+                if (Math.random() > emitThreshold) { // Emit freq
+                    // Calculate tail offset based on current rotation
+                    const tailOffsetZ = -25; // Tail is behind
+                    const cosA = Math.cos(nemoGroup.rotation.y);
+                    const sinA = Math.sin(nemoGroup.rotation.y);
+
+                    const tailX = nemoGroup.position.x + (tailOffsetZ * sinA);
+                    const tailZ = nemoGroup.position.z + (tailOffsetZ * cosA);
+                    const tailY = nemoGroup.position.y + (Math.random() - 0.5) * 10;
+
+                    // Create a single sparkle mesh
+                    const sparkleGeom = new THREE.BufferGeometry();
+                    sparkleGeom.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0], 3));
+                    const sparkleMat = new THREE.PointsMaterial({
+                        color: Math.random() > 0.5 ? 0xffffff : 0xffd700, // Gold and White
+                        size: 1.5 + Math.random(),
+                        transparent: true,
+                        opacity: 1.0,
+                        blending: THREE.AdditiveBlending,
+                        depthWrite: false
+                    });
+
+                    const sparkle = new THREE.Points(sparkleGeom, sparkleMat);
+                    sparkle.position.set(
+                        tailX + (Math.random() - 0.5) * 5,
+                        tailY,
+                        tailZ + (Math.random() - 0.5) * 5
+                    );
+
+                    // Add physics properties
+                    sparkle.userData = {
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.5,
+                            (Math.random() - 0.1) * 0.2, // Float up slightly
+                            (Math.random() - 0.5) * 0.5
+                        ),
+                        life: 1.0,
+                        decay: 0.01 + Math.random() * 0.02
+                    };
+
+                    scene.add(sparkle);
+                    nemoSparkles.push(sparkle);
+                }
+            }
+
+            // Update all Nemo sparkles
+            for (let i = nemoSparkles.length - 1; i >= 0; i--) {
+                const sp = nemoSparkles[i];
+                // Move based on velocity
+                sp.position.add(sp.userData.velocity);
+                // Slowly fade out
+                sp.userData.life -= sp.userData.decay;
+                sp.material.opacity = sp.userData.life;
+
+                // Add slight wobble
+                sp.position.x += Math.sin(time * 5 + i) * 0.2;
+
+                if (sp.userData.life <= 0) {
+                    scene.remove(sp);
+                    sp.geometry.dispose();
+                    sp.material.dispose();
+                    nemoSparkles.splice(i, 1);
+                }
+            }
 
             controls.update();
             renderer.render(scene, camera);
