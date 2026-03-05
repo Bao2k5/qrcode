@@ -464,7 +464,7 @@
         }
 
         function createHeart() {
-            const particleCount = 12000;
+            const particleCount = 18000; // Increased density for more solid look
             const geometry = new THREE.BufferGeometry();
             const positions = new Float32Array(particleCount * 3);
             const colors = new Float32Array(particleCount * 3);
@@ -519,7 +519,7 @@
                 colors[i * 3 + 1] = mixedColor.g;
                 colors[i * 3 + 2] = mixedColor.b;
 
-                sizes[i] = Math.random() * 2;
+                sizes[i] = Math.random() * 3.5 + 0.5; // Larger base size (0.5 to 4.0)
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -557,9 +557,9 @@
                         float ll = length(xy);
                         if(ll > 0.5) discard;
                         
-                        // Soft edge
-                        float alpha = (0.5 - ll) * 2.0;
-                        gl_FragColor = vec4(vColor, alpha * 0.8);
+                        // Soft edge with higher base brightness (1.5 max instead of 0.8)
+                        float alpha = (0.5 - ll) * 3.0; // steeper falloff but much brighter center
+                        gl_FragColor = vec4(vColor, alpha);
                     }
                 `,
                 transparent: true,
