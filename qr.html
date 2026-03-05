@@ -157,13 +157,8 @@
     </div>
 
     <script>
-        // Get the IP of the machine or use local URL
-        // A common local pattern is to get the current window location
-        var localUrl = window.location.origin + window.location.pathname.replace('qr.html', 'index.html');
-        if (localUrl.includes('file://')) {
-            // for local file testing
-            localUrl = localUrl;
-        }
+        // Set the URL directly to the live Vercel deployment
+        var localUrl = 'https://qrcode-fawn-one.vercel.app/';
 
         var qrcode = new QRCode(document.getElementById("qrcode"), {
             text: localUrl,

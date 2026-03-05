@@ -321,6 +321,13 @@
             if (e) e.preventDefault(); // prevent mouse emulation on touch
             if (isUnlocked || isStarted) return;
 
+            // UNLOCK AUDIO ON FIRST TOUCH (for mobile autoplay policy)
+            const audio = document.getElementById('bgMusic');
+            if (audio.paused) {
+                audio.volume = 0; // Play silently to unlock
+                audio.play().catch(err => console.log("Audio unlock failed:", err));
+            }
+
             const text = document.getElementById('scanText');
             const scanLine = document.getElementById('scanLine');
             const btn = document.getElementById('fingerBtn');
@@ -367,8 +374,10 @@
             isStarted = true;
 
             const audio = document.getElementById('bgMusic');
-            audio.volume = 0.5;
-            audio.play().catch(e => console.log("Audio block: ", e));
+            audio.volume = 1.0; // Play loudly
+            if (audio.paused) {
+                audio.play().catch(e => console.log("Audio play blocked: ", e));
+            }
 
             const overlay = document.getElementById('start-overlay');
             overlay.style.opacity = '0';
