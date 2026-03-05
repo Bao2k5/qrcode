@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Trái Tim 8/3</title>
-    <!-- qrcodejs as table renderer - force DrawType -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
@@ -17,14 +16,14 @@
             justify-content: center;
             min-height: 100vh;
             font-family: sans-serif;
-            gap: 16px;
+            gap: 18px;
         }
 
         #wrapper {
             background: #fff;
-            padding: 24px;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(200, 0, 40, 0.25);
+            padding: 28px;
+            border-radius: 24px;
+            box-shadow: 0 12px 40px rgba(200, 0, 40, 0.2);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -61,107 +60,166 @@
 </head>
 
 <body>
-    <!-- hidden table-mode QR generator -->
     <div id="q-hidden"></div>
-
-    <div id="wrapper">
-        <canvas id="c"></canvas>
-    </div>
-
-    <a id="dl" class="btn">💾 Tải ảnh về điện thoại</a>
-    <p class="hint">Quét ô vuông trung tâm bằng Camera hoặc Zalo nhé!</p>
+    <div id="wrapper"><canvas id="c"></canvas></div>
+    <a id="dl" class="btn">💾 Tải ảnh QR về</a>
+    <p class="hint">Dùng Camera hoặc Zalo để quét phần ô vuông ở giữa nhé!</p>
 
     <script>
         (() => {
             const URL = 'https://qrcode-fawn-one.vercel.app/';
-            const CELL = 14;              // px per module
-            const QR_COLOR = '#c62828'; // dark red
+            const QR_COLOR = '#c62828';  // dark red
             const BG_COLOR = '#ffffff';
 
-            /* ---- Force TABLE mode ---- */
+            // -- Generate QR and grab the internal matrix --
             const hiddenEl = document.getElementById('q-hidden');
-
-            // Patch: DrawType inside qrcodejs exposes HXXTable = 1
             const qrObj = new QRCode(hiddenEl, {
                 text: URL,
-                width: 256,
-                height: 256,
-                colorDark: '#000000',
-                colorLight: '#ffffff',
+                width: 256, height: 256,
+                colorDark: '#000', colorLight: '#fff',
                 correctLevel: QRCode.CorrectLevel.H,
             });
-
-            // qrcodejs exposes the internal qr object at _htOption & _oQRCode
-            // We need the moduleCount and isDark method
             const internalQR = qrObj._oQRCode;
+            const N = internalQR.moduleCount; // e.g. 33
 
-            if (!internalQR) {
-                // Fallback: parse the table that might still be in the DOM
-                const img = hiddenEl.querySelector('canvas, img');
-                console.error('Cannot access internal QR object', img);
-                return;
-            }
+            // Module cell size for the real QR
+            const CELL = 11;  // px per real QR module
 
-            const N = internalQR.moduleCount;
+            // Real QR square size
+            const qrSize = N * CELL;
 
-            /* ---- Set up canvas ---- */
+            // Decorative "wing" pixel unit size (same as CELL for consistency)
+            const D = CELL;
+
+            // We'll draw the real QR in the center of a larger canvas.
+            // The heart wings extend outward. A heart that wraps a square
+            // needs two round bumps at the top-left and top-right, and a point at the bottom.
+            // Strategy: build a pixel grid where:
+            //   - the center NxN region = real QR
+            //   - surrounding cells = decorative heart pattern (fake QR noise in heart shape)
+
+            // We build a total grid. The heart outline pixels go OUTSIDE the QR square.
+            // Heart extends about 30% on each side.
+            const PAD = Math.round(N * 0.30);  // padding cells around QR (30%)
+            const totalCols = N + PAD * 2;     // total columns in canvas grid
+            const totalRows = N + PAD * 2;     // total rows
+
             const cvs = document.getElementById('c');
-            cvs.width = N * CELL;
-            cvs.height = N * CELL;
+            cvs.width = totalCols * D;
+            cvs.height = totalRows * D;
             const ctx = cvs.getContext('2d');
+
+            // Fill white
             ctx.fillStyle = BG_COLOR;
             ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-            /* ---- Heart mask: returns true if (cx, cy) is inside a heart ---- */
-            function insideHeart(nx, ny) {
-                // nx, ny are normalized to [-1, 1]
-                // Shift up so the pointy bottom is nicely framed
-                const x = nx;
-                const y = -ny + 0.1;  // flip + shift
-                // Heart equation: (x² + y² - 1)³ - x²y³ ≤ 0
-                const v = Math.pow(x * x + y * y - 1, 3) - x * x * Math.pow(y, 3);
-                return v <= 0;
+            // Helper: is a grid cell (gr, gc) inside the heart outline ZONE
+            // (outside the real QR square but in the decorative heart region)?
+            function cellInsideHeart(gr, gc) {
+                // Normalize to [-1, 1] relative to full canvas
+                const nx = ((gc + 0.5) / totalCols) * 2 - 1;
+                const ny = ((gr + 0.5) / totalRows) * 2 - 1;
+                // Shift heart up slightly so QR square aligns with lower half of heart
+                const hx = nx;
+                const hy = -ny + 0.18;
+                // Heart implicit: (x²+y²-1)³ - x²y³ ≤ 0
+                return Math.pow(hx * hx + hy * hy - 1, 3) - hx * hx * Math.pow(hy, 3) <= 0;
             }
 
-            /* ---- Finder-pattern guard ---- */
-            function isFinder(r, c) {
-                return (r < 9 && c < 9) ||             // top-left
-                    (r < 9 && c >= N - 9) ||        // top-right
-                    (r >= N - 9 && c < 9);          // bottom-left
+            function cellInRealQR(gr, gc) {
+                return gr >= PAD && gr < PAD + N && gc >= PAD && gc < PAD + N;
             }
 
-            /* ---- Draw ---- */
+            // Draw decorative fake QR modules in heart zone (outside real QR)
+            // Use a seeded-ish pseudo-random pattern that looks like QR
+            function fakeDark(gr, gc) {
+                // A checkerboard-ish noise that looks like QR data
+                const seed = (gr * 73856093) ^ (gc * 19349663);
+                const v = ((seed >>> 0) % 100);
+                return v < 45; // ~45% density for a QR-like look
+            }
+
+            // --- STEP 1: Draw heart decorative zone ---
+            for (let gr = 0; gr < totalRows; gr++) {
+                for (let gc = 0; gc < totalCols; gc++) {
+                    if (cellInRealQR(gr, gc)) continue; // skip, real QR drawn later
+                    if (!cellInsideHeart(gr, gc)) continue; // outside heart
+                    if (!fakeDark(gr, gc)) continue; // only dark modules
+
+                    const px = gc * D;
+                    const py = gr * D;
+
+                    // Rounded dot for decorative zone
+                    ctx.fillStyle = QR_COLOR;
+                    const rad = D * 0.38;
+                    ctx.beginPath();
+                    ctx.roundRect(px + 1, py + 1, D - 2, D - 2, rad);
+                    ctx.fill();
+                }
+            }
+
+            // --- STEP 2: Draw the real QR code in the center ---
             for (let r = 0; r < N; r++) {
                 for (let c = 0; c < N; c++) {
-                    const dark = internalQR.isDark(r, c);
-                    if (!dark) continue;
+                    if (!internalQR.isDark(r, c)) continue;
 
-                    const finder = isFinder(r, c);
-
-                    // Normalized position in [-1.15, 1.15]
-                    const nx = ((c + 0.5) / N) * 2.3 - 1.15;
-                    const ny = ((r + 0.5) / N) * 2.3 - 1.15;
-
-                    if (!finder && !insideHeart(nx, ny)) continue;
-
-                    const px = c * CELL;
-                    const py = r * CELL;
+                    const gr = r + PAD;
+                    const gc = c + PAD;
+                    const px = gc * D;
+                    const py = gr * D;
 
                     ctx.fillStyle = QR_COLOR;
-                    if (finder) {
-                        // Square for finder patterns (required for scannability)
-                        ctx.fillRect(px, py, CELL, CELL);
+
+                    // Finder patterns stay square; data modules get slightly rounded
+                    const isFinder = (r < 9 && c < 9) || (r < 9 && c >= N - 9) || (r >= N - 9 && c < 9);
+                    if (isFinder) {
+                        ctx.fillRect(px, py, D, D);
                     } else {
-                        // Rounded dot inside the heart
-                        const rad = Math.min(CELL * 0.38, 4);
+                        const rad = D * 0.35;
                         ctx.beginPath();
-                        ctx.roundRect(px + 1, py + 1, CELL - 2, CELL - 2, rad);
+                        ctx.roundRect(px + 1, py + 1, D - 2, D - 2, rad);
                         ctx.fill();
                     }
                 }
             }
 
-            /* ---- Download button ---- */
+            // --- STEP 3: White background for real QR area (light modules) ---
+            // This ensures the real QR has clean white cells for scannability
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    if (internalQR.isDark(r, c)) continue;
+
+                    const gr = r + PAD;
+                    const gc = c + PAD;
+                    const px = gc * D;
+                    const py = gr * D;
+
+                    ctx.fillStyle = BG_COLOR;
+                    ctx.fillRect(px, py, D, D);
+                }
+            }
+
+            // Redraw dark modules on top (since white may have overwritten some edge cases)
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    if (!internalQR.isDark(r, c)) continue;
+                    const gr = r + PAD;
+                    const gc = c + PAD;
+                    const px = gc * D;
+                    const py = gr * D;
+                    ctx.fillStyle = QR_COLOR;
+                    const isFinder = (r < 9 && c < 9) || (r < 9 && c >= N - 9) || (r >= N - 9 && c < 9);
+                    if (isFinder) {
+                        ctx.fillRect(px, py, D, D);
+                    } else {
+                        ctx.beginPath();
+                        ctx.roundRect(px + 1, py + 1, D - 2, D - 2, D * 0.35);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // --- Download button ---
             const dl = document.getElementById('dl');
             dl.href = cvs.toDataURL('image/png');
             dl.download = 'qr-trai-tim-8-3.png';
