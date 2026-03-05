@@ -9,21 +9,21 @@
     <style>
         body {
             margin: 0;
-            background: #fff8f8;
+            background: linear-gradient(135deg, #fff0f3 0%, #ffd6e0 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             font-family: sans-serif;
-            gap: 18px;
+            gap: 20px;
         }
 
         #wrapper {
             background: #fff;
-            padding: 28px;
-            border-radius: 24px;
-            box-shadow: 0 12px 40px rgba(200, 0, 40, 0.2);
+            padding: 32px;
+            border-radius: 28px;
+            box-shadow: 0 20px 60px rgba(180, 0, 40, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -34,21 +34,22 @@
         }
 
         .btn {
-            padding: 13px 36px;
-            background: #c62828;
+            padding: 14px 42px;
+            background: linear-gradient(135deg, #c62828, #e53935);
             color: #fff;
             border: none;
             border-radius: 50px;
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 6px 18px rgba(198, 40, 40, 0.4);
+            box-shadow: 0 8px 24px rgba(198, 40, 40, 0.45);
             text-decoration: none;
             display: inline-block;
+            letter-spacing: 0.5px;
         }
 
         .hint {
-            color: #888;
+            color: #aaa;
             font-size: 0.82rem;
             margin: 0;
         }
@@ -62,164 +63,145 @@
 <body>
     <div id="q-hidden"></div>
     <div id="wrapper"><canvas id="c"></canvas></div>
-    <a id="dl" class="btn">💾 Tải ảnh QR về</a>
-    <p class="hint">Dùng Camera hoặc Zalo để quét phần ô vuông ở giữa nhé!</p>
+    <a id="dl" class="btn">💾 Tải ảnh QR Trái Tim về</a>
+    <p class="hint">Quét ô vuông ở giữa bằng Zalo hoặc Camera nhé!</p>
 
     <script>
         (() => {
             const URL = 'https://qrcode-fawn-one.vercel.app/';
-            const QR_COLOR = '#c62828';  // dark red
-            const BG_COLOR = '#ffffff';
+            const DARK_CLR = '#c0392b';  // rich red
+            const BG_CLR = '#ffffff';
 
-            // -- Generate QR and grab the internal matrix --
+            // ── Generate QR ──────────────────────────────────────────────────
             const hiddenEl = document.getElementById('q-hidden');
             const qrObj = new QRCode(hiddenEl, {
-                text: URL,
-                width: 256, height: 256,
+                text: URL, width: 256, height: 256,
                 colorDark: '#000', colorLight: '#fff',
                 correctLevel: QRCode.CorrectLevel.H,
             });
-            const internalQR = qrObj._oQRCode;
-            const N = internalQR.moduleCount; // e.g. 33
+            const QR = qrObj._oQRCode;
+            const N = QR.moduleCount; // number of modules per side (e.g. 33)
 
-            // Module cell size for the real QR
-            const CELL = 11;  // px per real QR module
-
-            // Real QR square size
-            const qrSize = N * CELL;
-
-            // Decorative "wing" pixel unit size (same as CELL for consistency)
-            const D = CELL;
-
-            // We'll draw the real QR in the center of a larger canvas.
-            // The heart wings extend outward. A heart that wraps a square
-            // needs two round bumps at the top-left and top-right, and a point at the bottom.
-            // Strategy: build a pixel grid where:
-            //   - the center NxN region = real QR
-            //   - surrounding cells = decorative heart pattern (fake QR noise in heart shape)
-
-            // We build a total grid. The heart outline pixels go OUTSIDE the QR square.
-            // Heart extends about 30% on each side.
-            const PAD = Math.round(N * 0.30);  // padding cells around QR (30%)
-            const totalCols = N + PAD * 2;     // total columns in canvas grid
-            const totalRows = N + PAD * 2;     // total rows
+            // ── Canvas geometry ───────────────────────────────────────────────
+            const CELL = 12;           // px per module
+            // Wings add ~38% on each side to create heart bumps
+            const PAD = Math.round(N * 0.38);
+            const COLS = N + PAD * 2;
+            const ROWS = N + PAD * 2;
 
             const cvs = document.getElementById('c');
-            cvs.width = totalCols * D;
-            cvs.height = totalRows * D;
+            cvs.width = COLS * CELL;
+            cvs.height = ROWS * CELL;
             const ctx = cvs.getContext('2d');
 
-            // Fill white
-            ctx.fillStyle = BG_COLOR;
+            // Fill background white
+            ctx.fillStyle = BG_CLR;
             ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-            // Helper: is a grid cell (gr, gc) inside the heart outline ZONE
-            // (outside the real QR square but in the decorative heart region)?
-            function cellInsideHeart(gr, gc) {
-                // Normalize to [-1, 1] relative to full canvas
-                const nx = ((gc + 0.5) / totalCols) * 2 - 1;
-                const ny = ((gr + 0.5) / totalRows) * 2 - 1;
-                // Shift heart up slightly so QR square aligns with lower half of heart
+            // ── Heart math ───────────────────────────────────────────────────
+            // Uses standard algebraic heart: (x²+y²-1)³ - x²y³ ≤ 0
+            function inHeart(gc, gr) {
+                // Wider normalization gives more room for pointed tip
+                const nx = ((gc + 0.5) / COLS) * 2.4 - 1.2;
+                const ny = ((gr + 0.5) / ROWS) * 2.4 - 1.2;
                 const hx = nx;
-                const hy = -ny + 0.18;
-                // Heart implicit: (x²+y²-1)³ - x²y³ ≤ 0
+                const hy = -ny + 0.22;   // flip Y, shift up for pointed bottom
                 return Math.pow(hx * hx + hy * hy - 1, 3) - hx * hx * Math.pow(hy, 3) <= 0;
             }
 
-            function cellInRealQR(gr, gc) {
+            function inRealQR(gr, gc) {
                 return gr >= PAD && gr < PAD + N && gc >= PAD && gc < PAD + N;
             }
 
-            // Draw decorative fake QR modules in heart zone (outside real QR)
-            // Use a seeded-ish pseudo-random pattern that looks like QR
-            function fakeDark(gr, gc) {
-                // A checkerboard-ish noise that looks like QR data
-                const seed = (gr * 73856093) ^ (gc * 19349663);
-                const v = ((seed >>> 0) % 100);
-                return v < 45; // ~45% density for a QR-like look
+            // ── Structured-noise dark module for fake wings ───────────────────
+            // We use a repeating block pattern (2×2 tiles) for that "QR structure" look,
+            // then mod by a deterministic hash to vary density but stay ~55% dark.
+            function fakeWingDark(gr, gc) {
+                // Repeating 3×3 block tile
+                const tx = gc % 3;
+                const ty = gr % 3;
+                const base = [[1, 0, 1], [0, 1, 0], [1, 1, 0]][ty][tx];
+                // Offset noise using large primes (deterministic, no Math.random)
+                const noise = ((gr * 2654435761) ^ (gc * 2246822519)) >>> 0;
+                const jitter = (noise % 7) < 3 ? 1 : 0;  // flip ~43% of tiles
+                return (base ^ jitter) === 1;
             }
 
-            // --- STEP 1: Draw heart decorative zone ---
-            for (let gr = 0; gr < totalRows; gr++) {
-                for (let gc = 0; gc < totalCols; gc++) {
-                    if (cellInRealQR(gr, gc)) continue; // skip, real QR drawn later
-                    if (!cellInsideHeart(gr, gc)) continue; // outside heart
-                    if (!fakeDark(gr, gc)) continue; // only dark modules
+            // ── Draw wing modules (heart zone OUTSIDE the real QR) ───────────
+            for (let gr = 0; gr < ROWS; gr++) {
+                for (let gc = 0; gc < COLS; gc++) {
+                    if (inRealQR(gr, gc)) continue;
+                    if (!inHeart(gc, gr)) continue;
 
-                    const px = gc * D;
-                    const py = gr * D;
-
-                    // Rounded dot for decorative zone
-                    ctx.fillStyle = QR_COLOR;
-                    const rad = D * 0.38;
+                    const px = gc * CELL, py = gr * CELL;
+                    if (fakeWingDark(gr, gc)) {
+                        ctx.fillStyle = DARK_CLR;
+                    } else {
+                        ctx.fillStyle = BG_CLR;
+                    }
+                    // Rounded square module (looks like premium QR)
+                    const r2 = CELL * 0.32;
                     ctx.beginPath();
-                    ctx.roundRect(px + 1, py + 1, D - 2, D - 2, rad);
+                    ctx.roundRect(px + 0.8, py + 0.8, CELL - 1.6, CELL - 1.6, r2);
                     ctx.fill();
                 }
             }
 
-            // --- STEP 2: Draw the real QR code in the center ---
+            // ── Helper: is this module in a finder pattern? ───────────────────
+            function isFinder(r, c) {
+                return (r < 9 && c < 9) || (r < 9 && c >= N - 9) || (r >= N - 9 && c < 9);
+            }
+
+            // ── Draw real QR (light modules → white, dark → red) ─────────────
             for (let r = 0; r < N; r++) {
                 for (let c = 0; c < N; c++) {
-                    if (!internalQR.isDark(r, c)) continue;
+                    const gr = r + PAD, gc = c + PAD;
+                    const px = gc * CELL, py = gr * CELL;
+                    const dark = QR.isDark(r, c);
 
-                    const gr = r + PAD;
-                    const gc = c + PAD;
-                    const px = gc * D;
-                    const py = gr * D;
+                    if (!dark) {
+                        // Ensure light modules are clean white (no wing bleed)
+                        ctx.fillStyle = BG_CLR;
+                        ctx.fillRect(px, py, CELL, CELL);
+                        continue;
+                    }
 
-                    ctx.fillStyle = QR_COLOR;
-
-                    // Finder patterns stay square; data modules get slightly rounded
-                    const isFinder = (r < 9 && c < 9) || (r < 9 && c >= N - 9) || (r >= N - 9 && c < 9);
-                    if (isFinder) {
-                        ctx.fillRect(px, py, D, D);
+                    ctx.fillStyle = DARK_CLR;
+                    if (isFinder(r, c)) {
+                        // Finder pattern: solid square (required for scanning)
+                        ctx.fillRect(px, py, CELL, CELL);
                     } else {
-                        const rad = D * 0.35;
+                        // Data: rounded dot
+                        const r2 = CELL * 0.34;
                         ctx.beginPath();
-                        ctx.roundRect(px + 1, py + 1, D - 2, D - 2, rad);
+                        ctx.roundRect(px + 0.8, py + 0.8, CELL - 1.6, CELL - 1.6, r2);
                         ctx.fill();
                     }
                 }
             }
 
-            // --- STEP 3: White background for real QR area (light modules) ---
-            // This ensures the real QR has clean white cells for scannability
-            for (let r = 0; r < N; r++) {
-                for (let c = 0; c < N; c++) {
-                    if (internalQR.isDark(r, c)) continue;
+            // ── Thin heart outline for crispness ─────────────────────────────
+            // Draw a smooth SVG heart path scaled to canvas size
+            const W = cvs.width, H = cvs.height;
+            ctx.save();
+            // Translate so heart center is at canvas center, vertically shifted up
+            ctx.translate(W / 2, H * 0.52);
+            const scale = W * 0.48;
+            ctx.beginPath();
+            // Standard heart path using bezier curves
+            ctx.moveTo(0, -scale * 0.25);
+            ctx.bezierCurveTo(scale * 0.05, -scale * 0.50, scale * 0.60, -scale * 0.55, scale * 0.60, -scale * 0.1);
+            ctx.bezierCurveTo(scale * 0.60, scale * 0.25, scale * 0.30, scale * 0.55, 0, scale * 0.75);
+            ctx.bezierCurveTo(-scale * 0.30, scale * 0.55, -scale * 0.60, scale * 0.25, -scale * 0.60, -scale * 0.1);
+            ctx.bezierCurveTo(-scale * 0.60, -scale * 0.55, -scale * 0.05, -scale * 0.50, 0, -scale * 0.25);
+            ctx.closePath();
+            ctx.strokeStyle = DARK_CLR;
+            ctx.lineWidth = 2.5;
+            ctx.globalAlpha = 0.35; // subtle outline
+            ctx.stroke();
+            ctx.restore();
 
-                    const gr = r + PAD;
-                    const gc = c + PAD;
-                    const px = gc * D;
-                    const py = gr * D;
-
-                    ctx.fillStyle = BG_COLOR;
-                    ctx.fillRect(px, py, D, D);
-                }
-            }
-
-            // Redraw dark modules on top (since white may have overwritten some edge cases)
-            for (let r = 0; r < N; r++) {
-                for (let c = 0; c < N; c++) {
-                    if (!internalQR.isDark(r, c)) continue;
-                    const gr = r + PAD;
-                    const gc = c + PAD;
-                    const px = gc * D;
-                    const py = gr * D;
-                    ctx.fillStyle = QR_COLOR;
-                    const isFinder = (r < 9 && c < 9) || (r < 9 && c >= N - 9) || (r >= N - 9 && c < 9);
-                    if (isFinder) {
-                        ctx.fillRect(px, py, D, D);
-                    } else {
-                        ctx.beginPath();
-                        ctx.roundRect(px + 1, py + 1, D - 2, D - 2, D * 0.35);
-                        ctx.fill();
-                    }
-                }
-            }
-
-            // --- Download button ---
+            // ── Download button ───────────────────────────────────────────────
             const dl = document.getElementById('dl');
             dl.href = cvs.toDataURL('image/png');
             dl.download = 'qr-trai-tim-8-3.png';
