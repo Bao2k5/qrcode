@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gửi... Ngoại Lệ Của Anh 💖</title>
+    <!-- Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Outfit:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden !important;
+            user-select: none;
+        }
+
+        /* The Touch Button Scanner */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .finger-print-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 20, 147, 0.1);
+            border: 2px solid #ff69b4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.5);
+            animation: pulse-ring 2s infinite;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 25px;
+            cursor: pointer;
+            transition: all 0.5s;
+        }
+
+        .finger-print-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            pointer-events: none;
+            /* Prevent dragging the image */
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: #fff;
+            box-shadow: 0 0 15px #fff, 0 0 30px #ff69b4;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .scan-line.scanning {
+            opacity: 1;
+            animation: scanAnim 1.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes scanAnim {
+            0% {
+                top: 10%;
+            }
+
+            100% {
+                top: 90%;
+            }
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 20px rgba(255, 105, 180, 0.5);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 40px rgba(255, 105, 180, 0.8), 0 0 60px rgba(255, 20, 147, 0.6);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 20px rgba(255, 105, 180, 0.5);
+            }
+        }
+
+        .start-text {
+            color: white;
+            text-shadow: 0 0 10px #ff69b4, 0 0 20px #ff1493;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 300;
+            text-align: center;
+            padding: 0 20px;
+            transition: all 0.5s;
+        }
+
+        /* World Container */
+        #romantic-world {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 10;
+        }
+
+        /* 3D Canvas */
+        #webgl-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 11;
+        }
+
+        /* The Message Box */
+        .glass-card {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 182, 193, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(255, 20, 147, 0.1);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .glass-card.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        h1.title {
+            font-family: 'Dancing Script', cursive;
+            font-size: 2.5rem;
+            margin: 0 0 15px 0;
+            color: #ff8cbe;
+            text-shadow: 0 0 10px rgba(255, 105, 180, 0.8);
+        }
+
+        .message-text {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #fdf0f5;
+            font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Top Title Magic Effect */
+        .top-float-text {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Dancing Script', cursive;
+            /* More romantic font */
+            font-weight: 700;
+            font-size: 2.5rem;
+            z-index: 30;
+            width: 100%;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            /* Shimmering Gradient Text */
+            background: linear-gradient(90deg, #ffb6c1, #ff1493, #fff, #ff1493, #ffb6c1);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shine 4s linear infinite, glowPulse 3s ease-in-out infinite alternate;
+            filter: drop-shadow(0 0 10px rgba(255, 105, 180, 0.8));
+        }
+
+        @keyframes shine {
+            to {
+                background-position: 200% center;
+            }
+        }
+
+        @keyframes glowPulse {
+            0% {
+                filter: drop-shadow(0 0 5px rgba(255, 105, 180, 0.5));
+            }
+
+            100% {
+                filter: drop-shadow(0 0 20px rgba(255, 20, 147, 0.9));
+                transform: translateX(-50%) scale(1.05);
+            }
+        }
+
+        /* Mobile Touch Effect */
+        .touch-sparkle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fff 0%, #ff69b4 50%, transparent 100%);
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            animation: touchSparkleFade 0.8s ease-out forwards;
+            box-shadow: 0 0 15px #ff69b4, 0 0 30px #ff1493;
+        }
+
+        @keyframes touchSparkleFade {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, calc(-50% - 30px)) scale(2);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Audio -->
+    <audio id="bgMusic" loop>
+        <source src="love-language.webm" type="audio/webm">
+    </audio>
+
+    <!-- Overlay Scanner -->
+    <div id="start-overlay">
+        <div class="finger-print-btn" id="fingerBtn" onmousedown="pressDown()" onmouseup="pressUp()"
+            onmouseleave="pressUp()" ontouchstart="pressDown(event)" ontouchend="pressUp(event)">
+            <!-- BẠN THAY TÊN FILE HÌNH CỦA BẠN VÀO ĐÂY NHÉ (VÍ DỤ: anh-cua-nemo.jpg) -->
+            <img src="anh-cua-ban.jpg" alt="Avatar" id="fingerImg"
+                onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=Nemo&background=ff69b4&color=fff&size=120';">
+            <div class="scan-line" id="scanLine"></div>
+        </div>
+        <h2 class="start-text" id="scanText">Chạm và <b>Giữ</b> để nhận diện... 💖</h2>
+    </div>
+
+    <div class="top-float-text" id="topText">Chúc mừng ngày Quốc tế Phụ Nữ 8/3 ❤️</div>
+
+    <div id="romantic-world">
+        <!-- We will put Three.js canvas here -->
+    </div>
+
+
+    <!-- Import Three.js via CDN -->
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+          }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let heartParticles, textRings = [];
+        let time = 0;
+        let isStarted = false;
+
+        let scanTimer;
+        let isUnlocked = false;
+
+        window.pressDown = function (e) {
+            if (e) e.preventDefault(); // prevent mouse emulation on touch
+            if (isUnlocked || isStarted) return;
+
+            const text = document.getElementById('scanText');
+            const scanLine = document.getElementById('scanLine');
+            const btn = document.getElementById('fingerBtn');
+
+            text.innerHTML = "Đang xác nhận danh tính...<br>Giữ yên nhé ✨";
+            scanLine.classList.add('scanning');
+            btn.style.animation = "none";
+            btn.style.transform = "scale(1.1)";
+            btn.style.border = "2px solid #fff";
+            btn.style.boxShadow = "0 0 50px rgba(255, 105, 180, 1)";
+
+            scanTimer = setTimeout(() => {
+                isUnlocked = true;
+                text.innerHTML = "Xác nhận thành công!<br>Đây là Nemo nè 💖";
+                scanLine.classList.remove('scanning');
+                btn.style.background = "rgba(255, 255, 255, 0.9)";
+                btn.style.boxShadow = "0 0 100px #fff, 0 0 150px #ff1493";
+
+                setTimeout(() => {
+                    startExperience();
+                }, 1000);
+            }, 2500); // Wait 2.5 seconds
+        }
+
+        window.pressUp = function (e) {
+            if (e) e.preventDefault();
+            if (isUnlocked || isStarted) return;
+            clearTimeout(scanTimer);
+
+            const text = document.getElementById('scanText');
+            const scanLine = document.getElementById('scanLine');
+            const btn = document.getElementById('fingerBtn');
+
+            text.innerHTML = "Quá trình bị ngắt!<br>Chạm và <b>Giữ</b> để quét lại 💖";
+            scanLine.classList.remove('scanning');
+            btn.style.animation = "pulse-ring 2s infinite";
+            btn.style.transform = "scale(1)";
+            btn.style.border = "2px solid #ff69b4";
+            btn.style.boxShadow = "0 0 20px rgba(255, 105, 180, 0.5)";
+        }
+
+        window.startExperience = function () {
+            if (isStarted) return;
+            isStarted = true;
+
+            const audio = document.getElementById('bgMusic');
+            audio.volume = 0.5;
+            audio.play().catch(e => console.log("Audio block: ", e));
+
+            const overlay = document.getElementById('start-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                document.getElementById('topText').style.opacity = '1';
+                initThreeJS();
+            }, 1000);
+        }
+
+        function initThreeJS() {
+            const container = document.getElementById('romantic-world');
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 250;
+            camera.position.y = 50;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 1);
+            container.appendChild(renderer.domElement);
+
+            // Orbit controls for mobile interaction
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.enableZoom = false; // Disable zoom to keep composition
+            controls.enablePan = false;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 2.0;
+            // Limit vertical rotation to keep it looking good
+            controls.minPolarAngle = Math.PI / 3;
+            controls.maxPolarAngle = Math.PI / 1.5;
+
+            createHeart();
+            createRotatingTextRings();
+            createStarfield();
+
+            window.addEventListener('resize', onWindowResize);
+
+            animate();
+        }
+
+        function createHeart() {
+            const particleCount = 12000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            const color1 = new THREE.Color(0xff69b4); // Hot Pink
+            const color2 = new THREE.Color(0xff1493); // Deep Pink
+            const color3 = new THREE.Color(0xffffff); // White
+
+            for (let i = 0; i < particleCount; i++) {
+                // Heart math formula (generating points on surface + volume)
+                let x, y, z;
+
+                // Randomly choose between outline and fill
+                const t = Math.PI * 2 * Math.random();
+                const u = Math.PI * Math.random();
+
+                // Base heart shape parametric equations
+                const bx = 16 * Math.pow(Math.sin(t), 3);
+                const by = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+
+                // Add depth and volume randomness
+                const spreadX = Math.random() * 2 - 1;
+                const spreadY = Math.random() * 2 - 1;
+                const spreadZ = Math.random() * 2 - 1;
+
+                const factor = 5 + Math.random() * 2; // Scale
+
+                // Hollow vs Solid mix
+                const radius = Math.cbrt(Math.random());
+
+                x = bx * factor * radius + spreadX * 5;
+                y = by * factor * radius + spreadY * 5;
+                // Deeper Z for 3D effect based on X/Y distance from center
+                z = (Math.random() - 0.5) * 40 * Math.pow(1 - Math.abs(bx) / 16, 0.5);
+
+                positions[i * 3] = x;
+                positions[i * 3 + 1] = y + 40; // Move up
+                positions[i * 3 + 2] = z;
+
+                // Color tinting mostly pink, some white sparkles
+                const randColor = Math.random();
+                let mixedColor;
+                if (randColor > 0.95) mixedColor = color3;
+                else if (randColor > 0.5) mixedColor = color1;
+                else mixedColor = color2;
+
+                // Vary slightly
+                mixedColor.lerp(new THREE.Color(0xffb6c1), Math.random() * 0.3);
+
+                colors[i * 3] = mixedColor.r;
+                colors[i * 3 + 1] = mixedColor.g;
+                colors[i * 3 + 2] = mixedColor.b;
+
+                sizes[i] = Math.random() * 2;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            // Custom shader material for glowing points
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    globalScale: { value: window.innerHeight / 1000 } // scale by screen
+                },
+                vertexShader: `
+                    uniform float time;
+                    uniform float globalScale;
+                    attribute vec3 color;
+                    attribute float size;
+                    varying vec3 vColor;
+                    void main() {
+                        vColor = color;
+                        // Heartbeat throb effect
+                        float throb = sin(time * 3.0) * 0.05 + 1.0;
+                        vec3 pos = position * throb;
+                        
+                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                        gl_PointSize = size * globalScale * (300.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+                    void main() {
+                        // Soft glowing circle
+                        vec2 xy = gl_PointCoord.xy - vec2(0.5);
+                        float ll = length(xy);
+                        if(ll > 0.5) discard;
+                        
+                        // Soft edge
+                        float alpha = (0.5 - ll) * 2.0;
+                        gl_FragColor = vec4(vColor, alpha * 0.8);
+                    }
+                `,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            heartParticles = new THREE.Points(geometry, material);
+            scene.add(heartParticles);
+        }
+
+        // Circular Text Ring using Canvas Texture
+        function createTextTexture(text, hue) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1024;
+            canvas.height = 128; // Wide ribbon
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = 'bold 60px "Outfit", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Text color based on hue
+            ctx.fillStyle = `hsl(${hue}, 100%, 75%)`;
+            // Add slight glow
+            ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+            ctx.shadowBlur = 10;
+
+            // Repeat text to wrap around circle
+            const repeatedText = `${text}   💖   ${text}   💖   ${text}   💖   `;
+            ctx.fillText(repeatedText, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.repeat.x = 2; // Repeat texture horizontally
+            return texture;
+        }
+
+        function createRotatingTextRings() {
+            const texts = [
+                "Happy Women's Day 8/3",
+                "Phụ Nữ Việt Nam",
+                "Luôn Xinh Đẹp Và Hạnh Phúc",
+                "Mãi Rạng Rỡ Như Hoa"
+            ];
+
+            const ringCount = texts.length;
+            const startRadius = 80;
+            const radiusStep = 30;
+            const startY = -60;
+            const yStep = -20;
+
+            for (let i = 0; i < ringCount; i++) {
+                const radius = startRadius + i * radiusStep;
+                const yPos = startY + i * yStep;
+                const hue = 320 + (i * 15); // Pink variations
+
+                const texture = createTextTexture(texts[i], hue);
+
+                // Cylinder for text ribbon
+                const geometry = new THREE.CylinderGeometry(radius, radius, 15, 64, 1, true); // true = openEnded
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    opacity: 0.85,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+
+                const ring = new THREE.Mesh(geometry, material);
+                ring.position.y = yPos;
+
+                // Custom properties for animation
+                ring.userData = {
+                    rotationSpeed: (0.005 + Math.random() * 0.005) * (i % 2 === 0 ? 1 : -1),
+                    textureOffsetSpeed: 0.002 * (i % 2 === 0 ? -1 : 1)
+                };
+
+                scene.add(ring);
+                textRings.push(ring);
+            }
+        }
+
+        function createStarfield() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            for (let i = 0; i < 3000; i++) {
+                // Spherical distribution
+                const r = 300 + Math.random() * 400;
+                const theta = Math.acos(Math.random() * 2 - 1);
+                const phi = Math.random() * Math.PI * 2;
+
+                const x = r * Math.sin(theta) * Math.cos(phi);
+                const y = r * Math.sin(theta) * Math.sin(phi);
+                const z = r * Math.cos(theta);
+
+                vertices.push(x, y, z);
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            const material = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1.5,
+                transparent: true,
+                opacity: 0.6
+            });
+            const stars = new THREE.Points(geometry, material);
+            scene.add(stars);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (heartParticles && heartParticles.material.uniforms) {
+                heartParticles.material.uniforms.globalScale.value = window.innerHeight / 1000;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+
+            // Update heart shader time
+            if (heartParticles) {
+                heartParticles.material.uniforms.time.value = time;
+                heartParticles.rotation.y = Math.sin(time * 0.5) * 0.2; // Slight wobble
+            }
+
+            // Animate text rings
+            textRings.forEach(ring => {
+                ring.rotation.y += ring.userData.rotationSpeed;
+                if (ring.material.map) {
+                    ring.material.map.offset.x += ring.userData.textureOffsetSpeed;
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Touch sparkles everywhere
+        document.addEventListener('touchstart', function (e) {
+            let touch = e.touches[0];
+            if (touch && isStarted) {
+                let sparkle = document.createElement('div');
+                sparkle.className = 'touch-sparkle';
+                sparkle.style.left = touch.pageX + 'px';
+                sparkle.style.top = touch.pageY + 'px';
+                document.body.appendChild(sparkle);
+                setTimeout(() => sparkle.remove(), 800);
+            }
+        }, { passive: true });
+
+    </script>
+</body>
+
+</html>
