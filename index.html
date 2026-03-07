@@ -191,93 +191,107 @@
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
         }
 
-        /* === CHAT MESSAGE PANEL === */
-        #chat-panel {
+        /* Chat Message Bubbles */
+        .chat-container {
             position: absolute;
-            bottom: 18%;
+            top: 8px;
             left: 50%;
             transform: translateX(-50%);
+            z-index: 30;
             width: 92%;
             max-width: 420px;
-            max-height: 55vh;
+            max-height: 38vh;
             overflow-y: auto;
-            z-index: 30;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 1s ease;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            padding: 8px 4px;
-            scroll-behavior: smooth;
-        }
-
-        #chat-panel.visible {
-            opacity: 1;
-        }
-
-        /* Each chat bubble */
-        .chat-bubble {
-            align-self: flex-end;
-            /* sender side */
-            background: linear-gradient(135deg, #ff1493, #c0007a);
-            color: #fff;
-            border-radius: 18px 18px 4px 18px;
-            padding: 10px 16px;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            max-width: 88%;
-            box-shadow: 0 4px 15px rgba(255, 20, 147, 0.4);
+            padding: 10px 0;
             opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 0.4s ease, transform 0.4s ease;
+            pointer-events: none;
+            scrollbar-width: none;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .chat-bubble {
+            align-self: flex-start;
+            background: rgba(30, 30, 40, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 105, 180, 0.25);
+            border-radius: 18px 18px 18px 4px;
+            padding: 10px 16px;
+            color: #ffe0f0;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 300;
+            max-width: 88%;
+            box-shadow: 0 4px 15px rgba(255, 20, 147, 0.15);
+            animation: bubblePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             word-break: break-word;
         }
 
-        .chat-bubble.show {
-            opacity: 1;
-            transform: translateY(0);
+        .chat-bubble.first {
+            background: rgba(255, 20, 147, 0.2);
+            border-color: rgba(255, 105, 180, 0.5);
+            font-family: 'Dancing Script', cursive;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #ffb6c1;
+            text-shadow: 0 0 8px rgba(255, 105, 180, 0.6);
         }
 
-        /* Typing indicator bubble */
-        .typing-indicator {
-            align-self: flex-end;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 18px 18px 4px 18px;
-            padding: 10px 18px;
-            display: flex;
-            gap: 5px;
-            align-items: center;
-        }
-
-        .typing-indicator span {
-            width: 7px;
-            height: 7px;
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
             background: #ff69b4;
-            border-radius: 50%;
-            animation: typingBounce 1.2s infinite;
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: blink 0.7s infinite;
         }
 
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typingBounce {
+        @keyframes blink {
 
             0%,
-            80%,
             100% {
-                transform: translateY(0);
-                opacity: 0.4;
+                opacity: 1;
             }
 
-            40% {
-                transform: translateY(-6px);
+            50% {
+                opacity: 0;
+            }
+        }
+
+        @keyframes bubblePop {
+            from {
+                transform: scale(0.8) translateY(10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0);
                 opacity: 1;
+            }
+        }
+
+        @keyframes shine {
+            to {
+                background-position: 200% center;
+            }
+        }
+
+        @keyframes glowPulse {
+            0% {
+                filter: drop-shadow(0 0 5px rgba(255, 105, 180, 0.5));
+            }
+
+            100% {
+                filter: drop-shadow(0 0 20px rgba(255, 20, 147, 0.9));
+                transform: translateX(-50%) scale(1.05);
             }
         }
 
@@ -329,10 +343,7 @@
         <h2 class="start-text" id="scanText">Chạm và <b>Giữ</b> để nhận diện... 💖</h2>
     </div>
 
-    <!-- Chat Message Panel -->
-    <div id="chat-panel">
-        <!-- bubbles inserted by JS -->
-    </div>
+    <div class="chat-container" id="chatContainer"></div>
 
     <div id="romantic-world">
         <!-- We will put Three.js canvas here -->
@@ -435,74 +446,69 @@
             overlay.style.opacity = '0';
             setTimeout(() => {
                 overlay.style.display = 'none';
+                startChatAnimation();
                 initThreeJS();
-                startChatMessages();
             }, 1000);
         }
 
-        // === CHAT MESSAGE ANIMATION ===
-        function startChatMessages() {
+        // ── Chat Typewriter ─────────────────────────────────────────────────
+        function startChatAnimation() {
             const messages = [
-                "Chúc mừng 8/3 Nemo nhỏ 🎉",
-                "Chúc Nemo 3 đừng, 3 không, 3 nhớ…",
-                "Đừng quá khắt khe với bản thân,",
-                "đừng hoài nghi chính mình và",
-                "đừng từ chối đi xem phim với ebao tối nay nhé 🎬",
-                "Không buồn nhiều quá, không áp lực quá và không một mình chịu đựng nữa 💪",
-                "Nhớ giữ sức khỏe, nhớ cười nhiều hơn và nhớ là có một người đáng yêu luôn chờ em 💖",
-                "Đáng yêu ý là anh đáng yêu ấy, hong phải đáng yêu kia đâu nha 😏"
+                { text: 'Chúc mừng 8/3 Nemo nhỏ 💖', cls: 'first' },
+                { text: 'Chúc Nemo 3 đừng, 3 không, 3 nhớ...' },
+                { text: 'Đừng quá khắt khe với bản thân,' },
+                { text: 'đừng hoài nghi chính mình và' },
+                { text: 'đừng từ chối mà hãy luôn nhận lời ebao rủ đi chơi nha 😄' },
+                { text: 'Không buồn nhiều quá, không áp lực quá và không một mình chịu đựng nữa 💪' },
+                { text: 'Nhớ giữ sức khỏe, nhớ cười nhiều hơn và nhớ là có một người đáng yêu luôn chờ em 🥰' },
+                { text: 'Đáng yêu ý là anh đáng yêu ấy, không phải đáng yêu kia đâu nha 😏' },
+                { text: 'Buổi xem phim hôm nay vui không? Nếu vui thì mình sẽ có những dịp sau nữa nhé 🎬✨' },
             ];
 
-            const panel = document.getElementById('chat-panel');
-            panel.classList.add('visible');
+            const container = document.getElementById('chatContainer');
+            container.style.opacity = '1';
 
-            let i = 0;
-            function showNext() {
-                if (i >= messages.length) return;
+            let msgIdx = 0;
+            const CHAR_SPEED = 40;   // ms per character
+            const PAUSE = 900;  // pause after each bubble (ms)
 
-                // Show typing indicator
-                const typing = document.createElement('div');
-                typing.className = 'typing-indicator';
-                typing.innerHTML = '<span></span><span></span><span></span>';
-                panel.appendChild(typing);
-                panel.scrollTop = panel.scrollHeight;
+            function typeNextMessage() {
+                if (msgIdx >= messages.length) return;
 
-                // After typing delay, replace indicator with bubble
-                const typingDelay = 900 + messages[i].length * 22;
-                setTimeout(() => {
-                    panel.removeChild(typing);
+                const { text, cls } = messages[msgIdx];
+                msgIdx++;
 
-                    const bubble = document.createElement('div');
-                    bubble.className = 'chat-bubble';
-                    bubble.textContent = messages[i];
-                    panel.appendChild(bubble);
-                    panel.scrollTop = panel.scrollHeight;
+                // Create bubble
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble' + (cls ? ' ' + cls : '');
+                container.appendChild(bubble);
 
-                    // Fade in
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => bubble.classList.add('show'));
-                    });
+                // Add cursor
+                const cursor = document.createElement('span');
+                cursor.className = 'typing-cursor';
+                bubble.appendChild(cursor);
 
-                    // How long to read this message (based on length)
-                    const readTime = 1800 + messages[i].length * 40;
-                    i++;
+                // Scroll to bottom
+                container.scrollTop = container.scrollHeight;
 
-                    // After read time - fade out and remove, then show next
-                    setTimeout(() => {
-                        bubble.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                        bubble.style.opacity = '0';
-                        bubble.style.transform = 'translateY(-8px)';
-                        setTimeout(() => {
-                            if (bubble.parentNode) panel.removeChild(bubble);
-                            setTimeout(showNext, 300); // short gap before next
-                        }, 500);
-                    }, readTime);
-
-                }, typingDelay);
+                // Type characters one by one
+                let charIdx = 0;
+                const interval = setInterval(() => {
+                    if (charIdx < text.length) {
+                        bubble.insertBefore(document.createTextNode(text[charIdx]), cursor);
+                        charIdx++;
+                        container.scrollTop = container.scrollHeight;
+                    } else {
+                        clearInterval(interval);
+                        cursor.remove();
+                        // Pause then type next message
+                        setTimeout(typeNextMessage, PAUSE);
+                    }
+                }, CHAR_SPEED);
             }
 
-            // Start after a short delay to let the scene load
-            setTimeout(showNext, 2000);
+            // Start first message after a short delay
+            setTimeout(typeNextMessage, 800);
         }
 
         function initThreeJS() {
