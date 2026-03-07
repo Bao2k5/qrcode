@@ -467,22 +467,38 @@
                 panel.appendChild(typing);
                 panel.scrollTop = panel.scrollHeight;
 
-                // After a short delay, replace with actual bubble
-                const delay = 900 + messages[i].length * 28;
+                // After typing delay, replace indicator with bubble
+                const typingDelay = 900 + messages[i].length * 22;
                 setTimeout(() => {
                     panel.removeChild(typing);
+
                     const bubble = document.createElement('div');
                     bubble.className = 'chat-bubble';
                     bubble.textContent = messages[i];
                     panel.appendChild(bubble);
                     panel.scrollTop = panel.scrollHeight;
-                    // Trigger show animation
+
+                    // Fade in
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => bubble.classList.add('show'));
                     });
+
+                    // How long to read this message (based on length)
+                    const readTime = 1800 + messages[i].length * 40;
                     i++;
-                    setTimeout(showNext, 800 + messages[i - 1].length * 15);
-                }, delay);
+
+                    // After read time - fade out and remove, then show next
+                    setTimeout(() => {
+                        bubble.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                        bubble.style.opacity = '0';
+                        bubble.style.transform = 'translateY(-8px)';
+                        setTimeout(() => {
+                            if (bubble.parentNode) panel.removeChild(bubble);
+                            setTimeout(showNext, 300); // short gap before next
+                        }, 500);
+                    }, readTime);
+
+                }, typingDelay);
             }
 
             // Start after a short delay to let the scene load
