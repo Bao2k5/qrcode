@@ -194,7 +194,7 @@
         /* Chat Message Bubbles */
         .chat-container {
             position: absolute;
-            top: 8px;
+            top: 0px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 30;
@@ -454,23 +454,23 @@
         // ── Chat Typewriter ─────────────────────────────────────────────────
         function startChatAnimation() {
             const messages = [
-                { text: 'Chúc mừng 8/3 Nemo nhỏ 💖', cls: 'first' },
+                { text: 'Chúc mừng 8/3 Nemo nhỏ ❤️', cls: 'first' },
                 { text: 'Chúc Nemo 3 đừng, 3 không, 3 nhớ...' },
                 { text: 'Đừng quá khắt khe với bản thân,' },
                 { text: 'đừng hoài nghi chính mình và' },
                 { text: 'đừng từ chối mà hãy luôn nhận lời ebao rủ đi chơi nha 😄' },
                 { text: 'Không buồn nhiều quá, không áp lực quá và không một mình chịu đựng nữa 💪' },
-                { text: 'Nhớ giữ sức khỏe, nhớ cười nhiều hơn và nhớ là có một người đáng yêu luôn chờ em 🥰' },
-                { text: 'Đáng yêu ý là anh đáng yêu ấy, không phải đáng yêu kia đâu nha 😏' },
-                { text: 'Buổi xem phim hôm nay vui không? Nếu vui thì mình sẽ có những dịp sau nữa nhé 🎬✨' },
+                { text: 'Nhớ giữ sức khỏe, nhớ cười nhiều hơn và nhớ là có một người đáng yêu luôn chờ nemo 💕' },
+                { text: 'Đáng yêu ý là anh đáng yêu ấy, không phải đáng yêu kia đâu nha 😊' },
+                { text: 'Buổi xem phim hôm nay vui hong? Nếu vui thì mình sẽ có những dịp sau nữa nho ✨' },
             ];
 
             const container = document.getElementById('chatContainer');
             container.style.opacity = '1';
 
             let msgIdx = 0;
-            const CHAR_SPEED = 40;   // ms per character
-            const PAUSE = 900;  // pause after each bubble (ms)
+            const CHAR_SPEED = 38;
+            const PAUSE = 700; // pause between bubbles
 
             function typeNextMessage() {
                 if (msgIdx >= messages.length) return;
@@ -478,17 +478,17 @@
                 const { text, cls } = messages[msgIdx];
                 msgIdx++;
 
-                // Create bubble
+                // Create new bubble (accumulates — not cleared)
                 const bubble = document.createElement('div');
                 bubble.className = 'chat-bubble' + (cls ? ' ' + cls : '');
                 container.appendChild(bubble);
 
-                // Add cursor
+                // Blinking cursor
                 const cursor = document.createElement('span');
                 cursor.className = 'typing-cursor';
                 bubble.appendChild(cursor);
 
-                // Scroll to bottom
+                // Auto-scroll to new bubble
                 container.scrollTop = container.scrollHeight;
 
                 // Type characters one by one
@@ -501,13 +501,13 @@
                     } else {
                         clearInterval(interval);
                         cursor.remove();
-                        // Pause then type next message
                         setTimeout(typeNextMessage, PAUSE);
                     }
                 }, CHAR_SPEED);
             }
 
-            // Start first message after a short delay
+            // Allow user to manually scroll too
+            container.style.pointerEvents = 'auto';
             setTimeout(typeNextMessage, 800);
         }
 
